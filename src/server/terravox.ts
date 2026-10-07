@@ -72,6 +72,80 @@ export const exportToolsFn = createServerFn({ method: 'GET' }).handler(async () 
   return parsed.data;
 });
 
+/** manifest（admin 视图）→ 仓库 tool.json 形状（tool-package.schema.json）。
+ * 仅 desktop/plugin 有仓库包；server/web 返回 null。导出供修改后走发布更新
+ * 流程（改 version/package_sha256 → tag → Release）。 */
+export type ToolJsonPayload = { [key: string]: string | number | boolean | object };
+
+export function manifestToToolJson(manifest: TerraVoxTool): ToolJsonPayload | null {
+  const execution = (manifest.execution ?? {}) as Record<string, unknown>;
+  const kind = String(execution.kind ?? '');
+  if (kind !== 'desktop' && kind !== 'plugin') {
+    return null;
+  }
+  const dist = (execution.distribution ?? {}) as Record<string, unknown>;
+  const out: ToolJsonPayload = {
+    schema_version: 1,
+    display_name: manifest.display_name,
+    description: manifest.description,
+    version: manifest.version,
+    package_sha256: typeof dist.package_sha256 === 'string' ? dist.package_sha256 : '',
+  };
+  if (kind === 'desktop') {
+    if (dist.launcher) {
+      out.launcher = dist.launcher;
+    }
+    if (dist.runtime) {
+      out.runtime = dist.runtime;
+    }
+  } else {
+    if (dist.host_launcher) {
+      out.host_launcher = dist.host_launcher;
+    }
+    if (Array.isArray(dist.host_root_hints) && dist.host_root_hints.length > 0) {
+      out.host_root_hints = dist.host_root_hints;
+    }
+    if (dist.install_script) {
+      out.install_script = dist.install_script;
+    }
+    if (dist.uninstall_script) {
+      out.uninstall_script = dist.uninstall_script;
+    }
+  }
+  out.dangerous = manifest.dangerous ?? false;
+  const seconds = typeof manifest.timeout_seconds === 'number' ? manifest.timeout_seconds : 1800;
+  out.timeout_minutes = Math.max(1, Math.round(seconds / 60));
+  out.parameters =
+    (manifest.parameters as ToolJsonPayload[string] | undefined) ?? {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    };
+  if (manifest.form) {
+    out.form = manifest.form;
+  }
+  if (manifest.result) {
+    out.result = manifest.result;
+  }
+  return out;
+}
+
+/** 导出单个工具的 tool.json：找 manifest → 映射为包描述符形状。 */
+export const exportToolJsonFn = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ toolId: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const { tools } = await getToolsFn();
+    const manifest = tools.find((tool) => tool.tool_id === data.toolId);
+    if (!manifest) {
+      throw new Error(`tool not found: ${data.toolId}`);
+    }
+    const toolJson = manifestToToolJson(manifest);
+    if (!toolJson) {
+      throw new Error('server/web 工具没有可导出的 tool.json（无仓库包）');
+    }
+    return toolJson;
+  });
+
 // ── Gitea 分发（「从 Gitea 导入」）───────────────────────────────────
 
 

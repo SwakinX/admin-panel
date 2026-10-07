@@ -23,6 +23,7 @@ import type { PendingToolUpdate, TerraVoxTool } from '@/server';
 import {
   createToolFn,
   deleteToolFn,
+  exportToolJsonFn,
   exportToolsFn,
   giteaCheckRepoFn,
   handlersQueryOptions,
@@ -516,6 +517,36 @@ export function ToolCatalogTab() {
                         setEditOpen(true);
                       }}
                       onCopy={() => void copyId(tool)}
+                      onExportToolJson={
+                        ['desktop', 'plugin'].includes(
+                          String(
+                            (tool.execution as Record<string, unknown> | undefined)?.kind ?? '',
+                          ),
+                        )
+                          ? () => {
+                              setExporting(true);
+                              setExportError(null);
+                              exportToolJsonFn({ data: { toolId: tool.tool_id } })
+                                .then((payload) => {
+                                  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                                    type: 'application/json',
+                                  });
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `${tool.tool_id}.tool.json`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                  setTimeout(() => URL.revokeObjectURL(url), 0);
+                                })
+                                .catch((err: unknown) => {
+                                  setExportError((err as Error)?.message ?? String(err));
+                                })
+                                .finally(() => setExporting(false));
+                            }
+                          : undefined
+                      }
                       onDelete={() => setDeleteTarget(tool)}
                     />
                   ))}
@@ -770,6 +801,7 @@ function ToolRow({
   onExposeToggle,
   onEdit,
   onCopy,
+  onExportToolJson,
   onDelete,
 }: {
   tool: TerraVoxTool;
@@ -781,6 +813,8 @@ function ToolRow({
   onExposeToggle: (tool: TerraVoxTool, front: 'ui' | 'mcp') => void;
   onEdit: () => void;
   onCopy: () => void;
+  /** 仅 desktop/plugin 传入：导出该工具的 tool.json（仓库包描述符形状）。 */
+  onExportToolJson?: () => void;
   onDelete: () => void;
 }) {
   const localize = useLocalize();
@@ -867,6 +901,11 @@ function ToolRow({
           <InlineAction label={localize('com_tools_copy_id')} onClick={onCopy}>
             ⧉
           </InlineAction>
+          {onExportToolJson && (
+            <InlineAction label={localize('com_tools_export_tooljson')} onClick={onExportToolJson}>
+              ⤓
+            </InlineAction>
+          )}
           <InlineAction label={localize('com_ui_delete')} danger onClick={onDelete}>
             ✕
           </InlineAction>

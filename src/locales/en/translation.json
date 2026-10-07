@@ -1277,6 +1277,7 @@
   "com_tools_import_button": "Import",
   "com_tools_export_button": "Export config",
   "com_tools_export_failed": "Export failed: ",
+  "com_tools_export_tooljson": "Export tool.json",
   "com_tools_copy_id": "Copy tool ID",
   "com_tools_delete_title": "Delete tool",
   "com_tools_delete_desc": "Permanently delete {{name}}? It is removed from the catalog and will not be re-seeded on gateway restart; audit records are kept.",
