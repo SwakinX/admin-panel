@@ -23,6 +23,7 @@ import type { PendingToolUpdate, TerraVoxTool } from '@/server';
 import {
   createToolFn,
   deleteToolFn,
+  exportToolsFn,
   giteaCheckRepoFn,
   handlersQueryOptions,
   pendingUpdatesQueryOptions,
@@ -99,6 +100,8 @@ export function ToolCatalogTab() {
   const [deleteTarget, setDeleteTarget] = useState<TerraVoxTool | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [mutError, setMutError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   /** 待确认更新的检查告警（琥珀色，不影响继续确认）。 */
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
 
@@ -111,6 +114,30 @@ export function ToolCatalogTab() {
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['terravox'] });
+  };
+
+  /** 导出当前全部工具配置：下载 JSON（形状与导入一致，可直接回灌）。 */
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const payload = await exportToolsFn();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `terravox-tools-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (err) {
+      setExportError((err as Error)?.message ?? String(err));
+    } finally {
+      setExporting(false);
+    }
   };
 
   const saveMutation = useMutation({
@@ -516,6 +543,15 @@ export function ToolCatalogTab() {
         <div className="ms-auto flex items-center gap-2">
           <button
             type="button"
+            disabled={exporting}
+            onClick={() => void handleExport()}
+            className="flex items-center gap-1.5 rounded-lg border border-(--cui-color-stroke-default) px-3 py-1.5 text-sm text-(--cui-color-text-default) transition-colors hover:bg-(--cui-color-background-hover) disabled:opacity-50"
+          >
+            <Icon name="download" size="sm" />
+            {localize('com_tools_export_button')}
+          </button>
+          <button
+            type="button"
             onClick={() => setImportOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-(--cui-color-stroke-default) px-3 py-1.5 text-sm text-(--cui-color-text-default) transition-colors hover:bg-(--cui-color-background-hover)"
           >
@@ -548,6 +584,12 @@ export function ToolCatalogTab() {
       {mutError && (
         <p role="alert" className="text-sm text-(--cui-color-text-danger)">
           {mutError}
+        </p>
+      )}
+      {exportError && (
+        <p role="alert" className="text-sm text-(--cui-color-text-danger)">
+          {localize('com_tools_export_failed')}
+          {exportError}
         </p>
       )}
       {savingOrder && (

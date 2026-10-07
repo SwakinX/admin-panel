@@ -52,6 +52,26 @@ export type {
 // ── Types ────────────────────────────────────────────────────────────
 
 
+/** 导出当前全部工具配置（含停用项）。形状与 importToolsFn 的 tools 一致——
+ * 下载的 JSON 可直接回灌（备份/环境迁移）。 */
+export const exportToolsFn = createServerFn({ method: 'GET' }).handler(async () => {
+  const response = await apiFetch('/api/terravox/admin/tools/export');
+  if (!response.ok) {
+    await gatewayError(response);
+  }
+  const parsed = z
+    .object({
+      exported_at: z.string(),
+      count: z.number(),
+      tools: z.array(z.record(z.string(), z.any())),
+    })
+    .safeParse(await response.json());
+  if (!parsed.success) {
+    throw new Error('Failed to parse export payload');
+  }
+  return parsed.data;
+});
+
 // ── Gitea 分发（「从 Gitea 导入」）───────────────────────────────────
 
 

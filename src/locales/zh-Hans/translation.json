@@ -1275,6 +1275,8 @@
   "com_tools_col_group": "分组",
   "com_tools_add_button": "添加工具",
   "com_tools_import_button": "导入",
+  "com_tools_export_button": "导出配置",
+  "com_tools_export_failed": "导出失败：",
   "com_tools_copy_id": "复制工具 ID",
   "com_tools_delete_title": "删除工具",
   "com_tools_delete_desc": "确定永久删除 {{name}}？工具将从目录移除，网关重启后也不会被重新种入；审计记录予以保留。",
